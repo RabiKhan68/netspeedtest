@@ -19,9 +19,7 @@
 </head>
 <body>
   <h1>Network Information</h1>
-  <a href="privacypolicy.html">
-    <h2>Privacy policy</h2>
-  </a>
+  <a href="privacypolicy.html"><h2>Privacy policy</h2></a>
 
   <p>IP: <span id="ip">Loading...</span></p>
   <p>Connection Type: <span id="type">Loading...</span></p>
@@ -32,17 +30,18 @@
   <p>Model: <span id="model">Loading...</span></p>
   <p id="status">Gathering data...</p>
 
-  <label>
-    <input type="checkbox" id="opt-out" /> I don't want my session data to be logged
-  </label>
+  <label><input type="checkbox" id="opt-out" /> I don't want my session data to be logged</label>
 
+  <!-- UAParser -->
   <script src="https://cdn.jsdelivr.net/npm/ua-parser-js@1.0.2/src/ua-parser.min.js"></script>
+
+  <!-- Firebase -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getFirestore, collection, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
-      apiKey: "AIzaSyB4wGbg2TIu9ER6rIpwO5xPtkhLaKjkttQ", // 🔐 Add your Firebase API key
+      apiKey: "AIzaSyB4wGbg2TIu9ER6rIpwO5xPtkhLaKjkttQ", // 🔐 Insert your real Firebase API key
       authDomain: "netspace-f34cf.firebaseapp.com",
       projectId: "netspace-f34cf",
       storageBucket: "netspace-f34cf.appspot.com",
@@ -55,11 +54,20 @@
 
     async function getIP() {
       try {
-        const res = await fetch("https://ipinfo.io/json?token=75ceb2ba10a982"); // optional token
-        const data = await res.json();
-        return { ip: data.ip || "unknown", location: data };
+        const res = await fetch("https://api.ipify.org?format=json");
+        const ipData = await res.json();
+        const geoRes = await fetch(`https://ipapi.co/${ipData.ip}/json/`);
+        const geo = await geoRes.json();
+        return {
+          ip: ipData.ip,
+          location: {
+            country: geo.country_name,
+            region: geo.region,
+            city: geo.city
+          }
+        };
       } catch (err) {
-        console.warn("IP fetch failed:", err);
+        console.warn("IP/location fetch failed:", err);
         return { ip: "unknown", location: {} };
       }
     }
@@ -79,25 +87,23 @@
       const fallback = {
         type: result.device.type || "desktop",
         model: result.device.model || "unknown",
-        os: result.os.name + " " + result.os.version,
+        os: `${result.os.name || "Unknown OS"} ${result.os.version || ""}`,
         osBase: result.os.name || "UnknownOS",
-        browser: result.browser.name + " " + result.browser.version
+        browser: `${result.browser.name || "Unknown"} ${result.browser.version || ""}`
       };
 
       if (navigator.userAgentData?.getHighEntropyValues) {
         try {
-          const ua = await navigator.userAgentData.getHighEntropyValues([
-            "platform", "platformVersion", "architecture", "model"
-          ]);
+          const ua = await navigator.userAgentData.getHighEntropyValues(["platform", "platformVersion", "model"]);
           return {
             type: fallback.type,
             model: ua.model || fallback.model,
-            os: `${ua.platform} ${ua.platformVersion}`,
+            os: `${ua.platform || fallback.osBase} ${ua.platformVersion || ""}`,
             osBase: ua.platform || fallback.osBase,
             browser: fallback.browser
           };
-        } catch (err) {
-          console.warn("High entropy UA failed:", err);
+        } catch (e) {
+          console.warn("High entropy fetch failed:", e);
         }
       }
 
@@ -105,8 +111,7 @@
     }
 
     async function logData() {
-      const optOut = document.getElementById("opt-out").checked;
-      if (optOut) {
+      if (document.getElementById("opt-out").checked) {
         document.getElementById("status").innerText = "Logging skipped by user.";
         return;
       }
@@ -123,34 +128,36 @@
       document.getElementById("browser").innerText = device.browser;
       document.getElementById("model").innerText = device.model;
 
-      const docId = `${device.osBase}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+      const docId = `${device.osBase}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 
       try {
         await setDoc(doc(collection(db, "networkLogs"), docId), {
+          ip,
+          location,
           connectionType: conn.type,
           downloadSpeedMbps: conn.speed,
           time: new Date().toISOString(),
           deviceType: device.type,
           deviceModel: device.model,
           os: device.os,
-          browser: device.browser,
-          location
+          browser: device.browser
         });
 
         document.getElementById("status").innerText = `Logged as: ${docId}`;
       } catch (err) {
-        console.error("Firestore error:", err);
+        console.error("Firestore error:", err.message);
         document.getElementById("status").innerText = "Failed to log data.";
       }
     }
 
     window.addEventListener("load", () => {
-      document.getElementById("opt-out").addEventListener("change", () => {
-        if (!document.getElementById("opt-out").checked) logData();
+      const optOutBox = document.getElementById("opt-out");
+      optOutBox.addEventListener("change", () => {
+        if (!optOutBox.checked) logData();
         else document.getElementById("status").innerText = "Logging skipped by user.";
       });
 
-      if (!document.getElementById("opt-out").checked) logData();
+      if (!optOutBox.checked) logData();
     });
   </script>
 </body>
