@@ -16,16 +16,22 @@
   <p>OS: <span id="os">Loading...</span></p>
   <p>Browser: <span id="browser">Loading...</span></p>
   <p>Model: <span id="model">Loading...</span></p>
-  <p id="status">Getting net speed...</p>
+  <p id="status">Getting network details...</p>
 
-  <!-- ✅ UAParser.js CDN -->
+  <!-- ✅ UAParser.js -->
   <script src="https://cdn.jsdelivr.net/npm/ua-parser-js@1.0.2/src/ua-parser.min.js"></script>
 
-  <!-- ✅ Firebase Modules -->
+  <!-- ✅ Firebase Setup -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import {
+      getFirestore,
+      collection,
+      doc,
+      setDoc
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
+    // ✅ Your Firebase Config
     const firebaseConfig = {
       apiKey: "AIzaSyB4wGbg2TIu9ER6rIpwO5xPtkhLaKjkttQ",
       authDomain: "netspace-f34cf.firebaseapp.com",
@@ -38,72 +44,78 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
+    // ✅ Get public IP
     async function getIP() {
-  try {
-    const res = await fetch("https://api.ipify.org?format=json");
-    const data = await res.json();
-    return data.ip;
-  } catch (err) {
-    console.error("Failed to fetch IP:", err);
-    return "unknown";
-  }
-}
+      try {
+        const res = await fetch("https://api.ipify.org?format=json");
+        const data = await res.json();
+        return data.ip;
+      } catch (err) {
+        console.error("Failed to fetch IP:", err);
+        return "unknown";
+      }
+    }
 
-function getConnectionInfo() {
-  const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection || {};
-  return {
-    type: conn.effectiveType || "unknown",
-    speed: conn.downlink || "unknown"
-  };
-}
+    // ✅ Get connection type/speed
+    function getConnectionInfo() {
+      const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection || {};
+      return {
+        type: conn.effectiveType || "unknown",
+        speed: conn.downlink || "unknown"
+      };
+    }
 
-function getDeviceInfo() {
-  const parser = new UAParser();
-  const result = parser.getResult();
-  return {
-    type: result.device.type || "desktop",
-    model: result.device.model || "unknown",
-    os: result.os.name + " " + result.os.version,
-    osBase: result.os.name || "unknown", // for doc ID
-    browser: result.browser.name + " " + result.browser.version
-  };
-}
+    // ✅ Get device info using UAParser
+    function getDeviceInfo() {
+      const parser = new UAParser();
+      const result = parser.getResult();
+      return {
+        type: result.device.type || "desktop",
+        model: result.device.model || "unknown",
+        os: result.os.name + " " + result.os.version,
+        osBase: result.os.name || "UnknownOS",  // for ID
+        browser: result.browser.name + " " + result.browser.version
+      };
+    }
 
-async function logData() {
-  try {
-    const ip = await getIP();
-    const connInfo = getConnectionInfo();
-    const deviceInfo = getDeviceInfo();
+    // ✅ Main logger function
+    async function logData() {
+      try {
+        const ip = await getIP();
+        const connInfo = getConnectionInfo();
+        const deviceInfo = getDeviceInfo();
 
-    document.getElementById("ip").innerText = ip;
-    document.getElementById("type").innerText = connInfo.type;
-    document.getElementById("speed").innerText = connInfo.speed;
-    document.getElementById("device").innerText = deviceInfo.type;
-    document.getElementById("os").innerText = deviceInfo.os;
-    document.getElementById("browser").innerText = deviceInfo.browser;
-    document.getElementById("model").innerText = deviceInfo.model;
+        document.getElementById("ip").innerText = ip;
+        document.getElementById("type").innerText = connInfo.type;
+        document.getElementById("speed").innerText = connInfo.speed;
+        document.getElementById("device").innerText = deviceInfo.type;
+        document.getElementById("os").innerText = deviceInfo.os;
+        document.getElementById("browser").innerText = deviceInfo.browser;
+        document.getElementById("model").innerText = deviceInfo.model;
 
-    // ✅ Custom doc ID based on OS + timestamp
-    const docId = `${deviceInfo.osBase}-${Date.now()}`;
+        // ✅ Generate unique document ID using OS + timestamp + random string
+        const docId = `${deviceInfo.osBase}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
 
-    await setDoc(doc(collection(db, "networkLogs"), docId), {
-      ip,
-      type: connInfo.type,
-      speed: connInfo.speed,
-      time: new Date().toISOString(),
-      deviceType: deviceInfo.type,
-      deviceModel: deviceInfo.model,
-      os: deviceInfo.os,
-      browser: deviceInfo.browser
-    });
+        await setDoc(doc(collection(db, "networkLogs"), docId), {
+          ip,
+          type: connInfo.type,
+          speed: connInfo.speed,
+          time: new Date().toISOString(),
+          deviceType: deviceInfo.type,
+          deviceModel: deviceInfo.model,
+          os: deviceInfo.os,
+          browser: deviceInfo.browser
+        });
 
-    console.log("Logged successfully as:", docId);
-  } catch (err) {
-    console.error("Logging error:", err);
-  }
-}
+        document.getElementById("status").innerText = `Net details logged as: ${docId}`;
+        console.log("Logged successfully:", docId);
+      } catch (err) {
+        console.error("Logging error:", err);
+        document.getElementById("status").innerText = "Error logging network details.";
+      }
+    }
 
-logData();
+    logData();
   </script>
 </body>
 
