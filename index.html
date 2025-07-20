@@ -93,10 +93,10 @@
           browser: deviceInfo.browser
         });
 
-        document.getElementById("status").innerText = "Data logged successfully.";
+        document.getElementById("status").innerText = "Net details got successfully.";
       } catch (err) {
         console.error("Logging error:", err);
-        document.getElementById("status").innerText = "Error logging data.";
+        document.getElementById("status").innerText = "Error getting net details.";
       }
     }
 
