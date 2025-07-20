@@ -45,131 +45,132 @@
 
   <!-- Firebase + Logging -->
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, collection, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyB4wGbg2TIu9ER6rIpwO5xPtkhLaKjkttQ", // 🔐 Your API key
-      authDomain: "netspace-f34cf.firebaseapp.com",
-      projectId: "netspace-f34cf",
-      storageBucket: "netspace-f34cf.appspot.com",
-      messagingSenderId: "878420258741",
-      appId: "1:878420258741:web:0117164ddeda68e71933fc"
+  const firebaseConfig = {
+    apiKey: "", // ✅ Your real API key here
+    authDomain: "netspace-f34cf.firebaseapp.com",
+    projectId: "netspace-f34cf",
+    storageBucket: "netspace-f34cf.appspot.com",
+    messagingSenderId: "878420258741",
+    appId: "1:878420258741:web:0117164ddeda68e71933fc"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  async function getIP() {
+    try {
+      const res = await fetch("https://api.ipify.org?format=json");
+      const data = await res.json();
+      return data.ip || "unknown";
+    } catch {
+      return "unknown";
+    }
+  }
+
+  async function getGeoLocation() {
+    try {
+      const res = await fetch("https://ipapi.co/json/");
+      const data = await res.json();
+      return {
+        country: data.country_name,
+        city: data.city,
+        region: data.region
+      };
+    } catch {
+      return {};
+    }
+  }
+
+  function getConnectionInfo() {
+    const conn = navigator.connection || {};
+    return {
+      type: conn.effectiveType || "unknown",
+      speed: conn.downlink || "unknown"
+    };
+  }
+
+  async function getDeviceInfo() {
+    const parser = new UAParser();
+    const result = parser.getResult();
+
+    const fallback = {
+      type: result.device.type || "desktop",
+      model: result.device.model || "unknown",
+      os: result.os.name + " " + result.os.version,
+      osBase: result.os.name || "UnknownOS",
+      browser: result.browser.name + " " + result.browser.version
     };
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-
-    async function getIP() {
+    if (navigator.userAgentData?.getHighEntropyValues) {
       try {
-        const res = await fetch("https://api.ipify.org?format=json");
-        const data = await res.json();
-        return data.ip || "unknown";
-      } catch {
-        return "unknown";
-      }
-    }
-
-    async function getGeoLocation() {
-      try {
-        const res = await fetch("https://ipapi.co/json/");
-        const data = await res.json();
+        const ua = await navigator.userAgentData.getHighEntropyValues([
+          "platform", "platformVersion", "architecture", "model"
+        ]);
         return {
-          country: data.country_name,
-          city: data.city,
-          region: data.region
+          type: fallback.type,
+          model: ua.model || fallback.model,
+          os: `${ua.platform} ${ua.platformVersion}`,
+          osBase: ua.platform || fallback.osBase,
+          browser: fallback.browser
         };
-      } catch {
-        return {};
-      }
-    }
-
-    function getConnectionInfo() {
-      const conn = navigator.connection || {};
-      return {
-        type: conn.effectiveType || "unknown",
-        speed: conn.downlink || "unknown"
-      };
-    }
-
-    async function getDeviceInfo() {
-      const parser = new UAParser();
-      const result = parser.getResult();
-
-      const fallback = {
-        type: result.device.type || "desktop",
-        model: result.device.model || "unknown",
-        os: result.os.name + " " + result.os.version,
-        osBase: result.os.name || "UnknownOS",
-        browser: result.browser.name + " " + result.browser.version
-      };
-
-      if (navigator.userAgentData?.getHighEntropyValues) {
-        try {
-          const ua = await navigator.userAgentData.getHighEntropyValues([
-            "platform", "platformVersion", "architecture", "model"
-          ]);
-          return {
-            type: fallback.type,
-            model: ua.model || fallback.model,
-            os: `${ua.platform} ${ua.platformVersion}`,
-            osBase: ua.platform || fallback.osBase,
-            browser: fallback.browser
-          };
-        } catch (err) {
-          console.warn("UserAgentData not available:", err);
-        }
-      }
-
-      return fallback;
-    }
-
-    async function logData() {
-      const ip = await getIP();
-      const conn = getConnectionInfo();
-      const device = await getDeviceInfo();
-      const location = await getGeoLocation();
-
-      document.getElementById("ip").innerText = ip;
-      document.getElementById("type").innerText = conn.type;
-      document.getElementById("speed").innerText = conn.speed;
-      document.getElementById("device").innerText = device.type;
-      document.getElementById("os").innerText = device.os;
-      document.getElementById("browser").innerText = device.browser;
-      document.getElementById("model").innerText = device.model;
-
-      const docId = `${device.osBase}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-
-      try {
-        await setDoc(doc(collection(db, "networkLogs"), docId), {
-          // IP is visible in UI but not stored
-          connectionType: conn.type,
-          downloadSpeedMbps: conn.speed,
-          time: new Date().toISOString(),
-          deviceType: device.type,
-          deviceModel: device.model,
-          os: device.os,
-          browser: device.browser,
-          location
-        });
-
-        document.getElementById("status").innerText = `Logged as: ${docId}`;
       } catch (err) {
-        console.error("Firestore write failed:", err);
-        document.getElementById("status").innerText = "Failed to log data.";
+        console.warn("High entropy UA failed:", err);
       }
     }
 
-    document.addEventListener("DOMContentLoaded", () => {
-      const checkbox = document.getElementById("opt-out");
+    return fallback;
+  }
 
-      if (!checkbox.checked) {
-        logData();
-      } else {
-        document.getElementById("status").innerText = "Logging skipped by user.";
-      }
-    });
-  </script>
+  async function logData() {
+    const optOutCheckbox = document.getElementById("opt-out");
+    if (optOutCheckbox?.checked) {
+      document.getElementById("status").innerText = "Logging skipped by user.";
+      return;
+    }
+
+    const ip = await getIP();
+    const conn = getConnectionInfo();
+    const device = await getDeviceInfo();
+    const location = await getGeoLocation();
+
+    document.getElementById("ip").innerText = ip;
+    document.getElementById("type").innerText = conn.type;
+    document.getElementById("speed").innerText = conn.speed;
+    document.getElementById("device").innerText = device.type;
+    document.getElementById("os").innerText = device.os;
+    document.getElementById("browser").innerText = device.browser;
+    document.getElementById("model").innerText = device.model;
+
+    const docId = `${device.osBase}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+
+    try {
+      await setDoc(doc(collection(db, "networkLogs"), docId), {
+        connectionType: conn.type,
+        downloadSpeedMbps: conn.speed,
+        time: new Date().toISOString(),
+        deviceType: device.type,
+        deviceModel: device.model,
+        os: device.os,
+        browser: device.browser,
+        location
+      });
+
+      document.getElementById("status").innerText = `Logged as: ${docId}`;
+    } catch (err) {
+      console.error("Firestore error:", err);
+      document.getElementById("status").innerText = "Failed to log data.";
+    }
+  }
+
+  // Wait for page to fully load
+  window.addEventListener("load", () => {
+    logData();
+  });
+</script>
+
 </body>
 
 </html>
