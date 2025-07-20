@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -10,17 +9,14 @@
       font-family: Arial, sans-serif;
       margin: 1rem;
     }
-
     h1 {
       color: #333;
     }
-
     p span {
       font-weight: bold;
     }
   </style>
 </head>
-
 <body>
   <h1>Network Information</h1>
   <a href="privacypolicy.html">
@@ -37,140 +33,125 @@
   <p id="status">Gathering data...</p>
 
   <label>
-    <input type="checkbox" id="opt-out"> I don't want my session data to be logged
+    <input type="checkbox" id="opt-out" /> I don't want my session data to be logged
   </label>
 
-  <!-- UAParser.js -->
   <script src="https://cdn.jsdelivr.net/npm/ua-parser-js@1.0.2/src/ua-parser.min.js"></script>
-
-  <!-- Firebase + Logging -->
   <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getFirestore, collection, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, collection, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyB4wGbg2TIu9ER6rIpwO5xPtkhLaKjkttQ", // ✅ Your real API key here
-    authDomain: "netspace-f34cf.firebaseapp.com",
-    projectId: "netspace-f34cf",
-    storageBucket: "netspace-f34cf.appspot.com",
-    messagingSenderId: "878420258741",
-    appId: "1:878420258741:web:0117164ddeda68e71933fc"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-
-  async function getIP() {
-    try {
-      const res = await fetch("https://api.ipify.org?format=json");
-      const data = await res.json();
-      return data.ip || "unknown";
-    } catch {
-      return "unknown";
-    }
-  }
-
-  async function getGeoLocation() {
-    try {
-      const res = await fetch("https://ipapi.co/json/");
-      const data = await res.json();
-      return {
-        country: data.country_name,
-        city: data.city,
-        region: data.region
-      };
-    } catch {
-      return {};
-    }
-  }
-
-  function getConnectionInfo() {
-    const conn = navigator.connection || {};
-    return {
-      type: conn.effectiveType || "unknown",
-      speed: conn.downlink || "unknown"
-    };
-  }
-
-  async function getDeviceInfo() {
-    const parser = new UAParser();
-    const result = parser.getResult();
-
-    const fallback = {
-      type: result.device.type || "desktop",
-      model: result.device.model || "unknown",
-      os: result.os.name + " " + result.os.version,
-      osBase: result.os.name || "UnknownOS",
-      browser: result.browser.name + " " + result.browser.version
+    const firebaseConfig = {
+      apiKey: "AIzaSyB4wGbg2TIu9ER6rIpwO5xPtkhLaKjkttQ", // 🔐 Add your Firebase API key
+      authDomain: "netspace-f34cf.firebaseapp.com",
+      projectId: "netspace-f34cf",
+      storageBucket: "netspace-f34cf.appspot.com",
+      messagingSenderId: "878420258741",
+      appId: "1:878420258741:web:0117164ddeda68e71933fc"
     };
 
-    if (navigator.userAgentData?.getHighEntropyValues) {
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    async function getIP() {
       try {
-        const ua = await navigator.userAgentData.getHighEntropyValues([
-          "platform", "platformVersion", "architecture", "model"
-        ]);
-        return {
-          type: fallback.type,
-          model: ua.model || fallback.model,
-          os: `${ua.platform} ${ua.platformVersion}`,
-          osBase: ua.platform || fallback.osBase,
-          browser: fallback.browser
-        };
+        const res = await fetch("https://ipinfo.io/json?token=YOUR_TOKEN"); // optional token
+        const data = await res.json();
+        return { ip: data.ip || "unknown", location: data };
       } catch (err) {
-        console.warn("High entropy UA failed:", err);
+        console.warn("IP fetch failed:", err);
+        return { ip: "unknown", location: {} };
       }
     }
 
-    return fallback;
-  }
-
-  async function logData() {
-    const optOutCheckbox = document.getElementById("opt-out");
-    if (optOutCheckbox?.checked) {
-      document.getElementById("status").innerText = "Logging skipped by user.";
-      return;
+    function getConnectionInfo() {
+      const conn = navigator.connection || {};
+      return {
+        type: conn.effectiveType || "unknown",
+        speed: conn.downlink || "unknown"
+      };
     }
 
-    const ip = await getIP();
-    const conn = getConnectionInfo();
-    const device = await getDeviceInfo();
-    const location = await getGeoLocation();
+    async function getDeviceInfo() {
+      const parser = new UAParser();
+      const result = parser.getResult();
 
-    document.getElementById("ip").innerText = ip;
-    document.getElementById("type").innerText = conn.type;
-    document.getElementById("speed").innerText = conn.speed;
-    document.getElementById("device").innerText = device.type;
-    document.getElementById("os").innerText = device.os;
-    document.getElementById("browser").innerText = device.browser;
-    document.getElementById("model").innerText = device.model;
+      const fallback = {
+        type: result.device.type || "desktop",
+        model: result.device.model || "unknown",
+        os: result.os.name + " " + result.os.version,
+        osBase: result.os.name || "UnknownOS",
+        browser: result.browser.name + " " + result.browser.version
+      };
 
-    const docId = `${device.osBase}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+      if (navigator.userAgentData?.getHighEntropyValues) {
+        try {
+          const ua = await navigator.userAgentData.getHighEntropyValues([
+            "platform", "platformVersion", "architecture", "model"
+          ]);
+          return {
+            type: fallback.type,
+            model: ua.model || fallback.model,
+            os: `${ua.platform} ${ua.platformVersion}`,
+            osBase: ua.platform || fallback.osBase,
+            browser: fallback.browser
+          };
+        } catch (err) {
+          console.warn("High entropy UA failed:", err);
+        }
+      }
 
-    try {
-      await setDoc(doc(collection(db, "networkLogs"), docId), {
-        connectionType: conn.type,
-        downloadSpeedMbps: conn.speed,
-        time: new Date().toISOString(),
-        deviceType: device.type,
-        deviceModel: device.model,
-        os: device.os,
-        browser: device.browser,
-        location
+      return fallback;
+    }
+
+    async function logData() {
+      const optOut = document.getElementById("opt-out").checked;
+      if (optOut) {
+        document.getElementById("status").innerText = "Logging skipped by user.";
+        return;
+      }
+
+      const { ip, location } = await getIP();
+      const conn = getConnectionInfo();
+      const device = await getDeviceInfo();
+
+      document.getElementById("ip").innerText = ip;
+      document.getElementById("type").innerText = conn.type;
+      document.getElementById("speed").innerText = conn.speed;
+      document.getElementById("device").innerText = device.type;
+      document.getElementById("os").innerText = device.os;
+      document.getElementById("browser").innerText = device.browser;
+      document.getElementById("model").innerText = device.model;
+
+      const docId = `${device.osBase}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+
+      try {
+        await setDoc(doc(collection(db, "networkLogs"), docId), {
+          connectionType: conn.type,
+          downloadSpeedMbps: conn.speed,
+          time: new Date().toISOString(),
+          deviceType: device.type,
+          deviceModel: device.model,
+          os: device.os,
+          browser: device.browser,
+          location
+        });
+
+        document.getElementById("status").innerText = `Logged as: ${docId}`;
+      } catch (err) {
+        console.error("Firestore error:", err);
+        document.getElementById("status").innerText = "Failed to log data.";
+      }
+    }
+
+    window.addEventListener("load", () => {
+      document.getElementById("opt-out").addEventListener("change", () => {
+        if (!document.getElementById("opt-out").checked) logData();
+        else document.getElementById("status").innerText = "Logging skipped by user.";
       });
 
-      document.getElementById("status").innerText = `Logged as: ${docId}`;
-    } catch (err) {
-      console.error("Firestore error:", err);
-      document.getElementById("status").innerText = "Failed to log data.";
-    }
-  }
-
-  // Wait for page to fully load
-  window.addEventListener("load", () => {
-    logData();
-  });
-</script>
-
+      if (!document.getElementById("opt-out").checked) logData();
+    });
+  </script>
 </body>
-
 </html>
