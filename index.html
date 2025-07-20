@@ -5,6 +5,18 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Network Info Logger</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 1rem;
+    }
+    h1 {
+      color: #333;
+    }
+    p span {
+      font-weight: bold;
+    }
+  </style>
 </head>
 
 <body>
@@ -16,23 +28,18 @@
   <p>OS: <span id="os">Loading...</span></p>
   <p>Browser: <span id="browser">Loading...</span></p>
   <p>Model: <span id="model">Loading...</span></p>
-  <p id="status">Getting network details...</p>
+  <p id="status">Gathering data...</p>
 
-  <!-- ✅ UAParser.js -->
+  <!-- UAParser.js -->
   <script src="https://cdn.jsdelivr.net/npm/ua-parser-js@1.0.2/src/ua-parser.min.js"></script>
 
-  <!-- ✅ Firebase Setup -->
+  <!-- Firebase Setup -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import {
-      getFirestore,
-      collection,
-      doc,
-      setDoc
-    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, collection, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
-      apiKey: "AIzaSyB4wGbg2TIu9ER6rIpwO5xPtkhLaKjkttQ",
+      apiKey: "AIzaSyB4wGbg2TIu9ER6rIpwO5xPtkhLaKjkttQ", // ✅ Add your API key
       authDomain: "netspace-f34cf.firebaseapp.com",
       projectId: "netspace-f34cf",
       storageBucket: "netspace-f34cf.appspot.com",
@@ -47,9 +54,8 @@
       try {
         const res = await fetch("https://api.ipify.org?format=json");
         const data = await res.json();
-        return data.ip;
-      } catch (err) {
-        console.error("Failed to fetch IP:", err);
+        return data.ip || "unknown";
+      } catch {
         return "unknown";
       }
     }
@@ -66,7 +72,7 @@
       const parser = new UAParser();
       const result = parser.getResult();
 
-      let deviceInfo = {
+      const fallback = {
         type: result.device.type || "desktop",
         model: result.device.model || "unknown",
         os: result.os.name + " " + result.os.version,
@@ -74,59 +80,77 @@
         browser: result.browser.name + " " + result.browser.version
       };
 
-      // Try navigator.userAgentData for better accuracy
-      if (navigator.userAgentData) {
+      // Modern high-entropy detection
+      if (navigator.userAgentData?.getHighEntropyValues) {
         try {
           const ua = await navigator.userAgentData.getHighEntropyValues([
-            "platform",
-            "platformVersion",
-            "architecture",
-            "model"
+            "platform", "platformVersion", "architecture", "model"
           ]);
-
-          deviceInfo.os = `${ua.platform} ${ua.platformVersion}`;
-          deviceInfo.osBase = ua.platform;
-          if (ua.model) deviceInfo.model = ua.model;
-        } catch (e) {
-          console.warn("userAgentData fallback:", e);
+          return {
+            type: fallback.type,
+            model: ua.model || fallback.model,
+            os: `${ua.platform} ${ua.platformVersion}`,
+            osBase: ua.platform || fallback.osBase,
+            browser: fallback.browser
+          };
+        } catch (err) {
+          console.warn("UserAgentData not available:", err);
         }
       }
 
-      return deviceInfo;
+      return fallback;
+    }
+
+    // Optional GeoIP support (e.g., country/city)
+    async function getGeoLocation() {
+      try {
+        const res = await fetch("https://ipapi.co/json");
+        const data = await res.json();
+        return {
+          country: data.country_name,
+          city: data.city,
+          region: data.region
+        };
+      } catch {
+        return {};
+      }
     }
 
     async function logData() {
       try {
         const ip = await getIP();
-        const connInfo = getConnectionInfo();
-        const deviceInfo = await getDeviceInfo();
+        const conn = getConnectionInfo();
+        const device = await getDeviceInfo();
+        // const location = await getGeoLocation(); // Optional
 
+        // Update UI
         document.getElementById("ip").innerText = ip;
-        document.getElementById("type").innerText = connInfo.type;
-        document.getElementById("speed").innerText = connInfo.speed;
-        document.getElementById("device").innerText = deviceInfo.type;
-        document.getElementById("os").innerText = deviceInfo.os;
-        document.getElementById("browser").innerText = deviceInfo.browser;
-        document.getElementById("model").innerText = deviceInfo.model;
+        document.getElementById("type").innerText = conn.type;
+        document.getElementById("speed").innerText = conn.speed;
+        document.getElementById("device").innerText = device.type;
+        document.getElementById("os").innerText = device.os;
+        document.getElementById("browser").innerText = device.browser;
+        document.getElementById("model").innerText = device.model;
 
-        const docId = `${deviceInfo.osBase}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+        const docId = `${device.osBase}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
 
         await setDoc(doc(collection(db, "networkLogs"), docId), {
           ip,
-          type: connInfo.type,
-          speed: connInfo.speed,
+          connectionType: conn.type,
+          downloadSpeedMbps: conn.speed,
           time: new Date().toISOString(),
-          deviceType: deviceInfo.type,
-          deviceModel: deviceInfo.model,
-          os: deviceInfo.os,
-          browser: deviceInfo.browser
+          deviceType: device.type,
+          deviceModel: device.model,
+          os: device.os,
+          browser: device.browser,
+          // location: location || null
         });
 
-        document.getElementById("status").innerText = `Logged as: ${docId}`;
-        console.log("Logged successfully:", docId);
+        document.getElementById("status").innerText = `✅ Logged as: ${docId}`;
+        console.log("Log success:", docId);
       } catch (err) {
-        console.error("Logging error:", err);
-        document.getElementById("status").innerText = "Error logging network details.";
+        console.error("Logging failed:", err);
+        document.getElementById("status").innerText = "❌ Failed to log data.";
       }
     }
 
