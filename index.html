@@ -6,33 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Network Info Logger</title>
     <link rel="stylesheet" href="connection.css">
-    <script type="text/javascript" src="https://cdn.emailjs.com/dist/email.min.js"></script>
-    <script>
-        (function () {
-            emailjs.init("m3SwSmUFIoZDRQI-u"); // Replace with your EmailJS public key
-        })();
-    </script>
-    <script>
-        async function sendemail() {
-            const checkbox = event.target;
-            if (checkbox.checked) {
-                const ip = document.getElementById("ip").innerText || "Unknown";
-
-                try {
-                    const result = await emailjs.send("service_ehzaihi", "template_rxgnxsi", {
-                        ip: ip
-                    });
-
-                    alert("Email sent to admin for data deletion request.");
-                    checkbox.disabled = true; // Optional: prevent multiple clicks
-                } catch (error) {
-                    console.error("Failed to send email:", error);
-                    alert("Failed to send email. Try again later.");
-                }
-            }
-        }
-    </script>
-
 
 </head>
 
@@ -219,6 +192,34 @@
             }
         }
     </script>
+    <!-- Include EmailJS SDK -->
+    <script src="https://cdn.emailjs.com/dist/email.min.js"></script>
+
+    <script>
+        (function () {
+            emailjs.init("m3SwSmUFIoZDRQI-u"); // Replace with your EmailJS public key
+        })();
+
+        async function sendemail() {
+            const checkbox = event.target;
+            if (checkbox.checked) {
+                const ip = document.getElementById("ip").innerText || "Unknown";
+
+                try {
+                    const result = await emailjs.send("service_ehzaihi", "template_rxgnxsi", {
+                        ip: ip
+                    });
+
+                    alert("Email sent to admin for data deletion request.");
+                    checkbox.disabled = true; // Optional: disable to prevent multiple sends
+                } catch (error) {
+                    console.error("Failed to send email:", error);
+                    alert("Failed to send email. Try again later.");
+                }
+            }
+        }
+    </script>
+
 
 </body>
 
