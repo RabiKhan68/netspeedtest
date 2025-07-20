@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Network Info Logger</title>
+</head>
+
+<body>
+  <h1>Network Information</h1>
+  <p>IP: <span id="ip">Loading...</span></p>
+  <p>Connection Type: <span id="type">Loading...</span></p>
+  <p>Download Speed (Mbps): <span id="speed">Loading...</span></p>
+  <p>Device Type: <span id="device">Loading...</span></p>
+  <p>OS: <span id="os">Loading...</span></p>
+  <p>Browser: <span id="browser">Loading...</span></p>
+  <p>Model: <span id="model">Loading...</span></p>
+  <p id="status">Getting database...</p>
+
+  <!-- ✅ UAParser.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/ua-parser-js@1.0.2/src/ua-parser.min.js"></script>
+
+  <!-- ✅ Firebase Modules -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyB4wGbg2TIu9ER6rIpwO5xPtkhLaKjkttQ",
+      authDomain: "netspace-f34cf.firebaseapp.com",
+      projectId: "netspace-f34cf",
+      storageBucket: "netspace-f34cf.appspot.com",
+      messagingSenderId: "878420258741",
+      appId: "1:878420258741:web:0117164ddeda68e71933fc"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    async function getIP() {
+      try {
+        const res = await fetch("https://api.ipify.org?format=json");
+        const data = await res.json();
+        return data.ip;
+      } catch (err) {
+        console.error("Failed to fetch IP:", err);
+        return "unknown";
+      }
+    }
+
+    function getConnectionInfo() {
+      const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection || {};
+      return {
+        type: conn.effectiveType || "unknown",
+        speed: conn.downlink || "unknown"
+      };
+    }
+
+    function getDeviceInfo() {
+      const parser = new UAParser();
+      const result = parser.getResult();
+      return {
+        type: result.device.type || "desktop",
+        model: result.device.model || "unknown",
+        os: result.os.name + " " + result.os.version,
+        browser: result.browser.name + " " + result.browser.version
+      };
+    }
+
+    async function logData() {
+      try {
+        const ip = await getIP();
+        const connInfo = getConnectionInfo();
+        const deviceInfo = getDeviceInfo();
+
+        document.getElementById("ip").innerText = ip;
+        document.getElementById("type").innerText = connInfo.type;
+        document.getElementById("speed").innerText = connInfo.speed;
+        document.getElementById("device").innerText = deviceInfo.type;
+        document.getElementById("os").innerText = deviceInfo.os;
+        document.getElementById("browser").innerText = deviceInfo.browser;
+        document.getElementById("model").innerText = deviceInfo.model;
+
+        await addDoc(collection(db, "networkLogs"), {
+          ip,
+          type: connInfo.type,
+          speed: connInfo.speed,
+          time: new Date().toISOString(),
+          deviceType: deviceInfo.type,
+          deviceModel: deviceInfo.model,
+          os: deviceInfo.os,
+          browser: deviceInfo.browser
+        });
+
+        document.getElementById("status").innerText = "Data logged successfully.";
+      } catch (err) {
+        console.error("Logging error:", err);
+        document.getElementById("status").innerText = "Error logging data.";
+      }
+    }
+
+    logData();
+  </script>
+</body>
+
+</html>
