@@ -1,189 +1,212 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Network Info Logger</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 1rem;
-    }
-    h1 { color: #333; }
-    p span { font-weight: bold; }
-  </style>
-</head>
-<body>
-  <h1>Network Information</h1>
-  <a href="privacypolicy.html"><h2>Privacy Policy</h2></a>
-
-  <p>IP: <span id="ip">Loading...</span></p>
-  <p>Connection Type: <span id="type">Loading...</span></p>
-  <p>Download Speed (Mbps): <span id="speed">Loading...</span></p>
-  <p>Device Type: <span id="device">Loading...</span></p>
-  <p>OS: <span id="os">Loading...</span></p>
-  <p>Browser: <span id="browser">Loading...</span></p>
-  <p>Model: <span id="model">Loading...</span></p>
-  <p id="status">Gathering data...</p>
-
-  <label><input type="checkbox" id="opt-out" /> I don't want my session data to be logged</label>
-
-  <!-- UAParser -->
-  <script src="https://cdn.jsdelivr.net/npm/ua-parser-js@1.0.2/src/ua-parser.min.js"></script>
-
-  <!-- Firebase -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyB4wGbg2TIu9ER6rIpwO5xPtkhLaKjkttQ", // 🔐 Add your Firebase API key
-      authDomain: "netspace-f34cf.firebaseapp.com",
-      projectId: "netspace-f34cf",
-      storageBucket: "netspace-f34cf.appspot.com",
-      messagingSenderId: "878420258741",
-      appId: "1:878420258741:web:0117164ddeda68e71933fc"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const auth = getAuth(app);
-
-    async function signIn() {
-      try {
-        const userCredential = await signInAnonymously(auth);
-        return userCredential.user.uid;
-      } catch (err) {
-        console.error("Auth failed:", err);
-        return null;
-      }
-    }
-
-    async function getIP() {
-      try {
-        const res = await fetch("https://api.ipify.org?format=json");
-        const ipData = await res.json();
-        const geoRes = await fetch(`https://ipapi.co/${ipData.ip}/json/`);
-        const geo = await geoRes.json();
-
-        return {
-          ip: ipData.ip,
-          location: {
-            country: geo.country_name,
-            region: geo.region,
-            city: geo.city
-          }
-        };
-      } catch (err) {
-        console.warn("IP/location fetch failed:", err);
-        return { ip: "unknown", location: {} };
-      }
-    }
-
-    async function hashIP(ip) {
-      const encoder = new TextEncoder();
-      const data = encoder.encode(ip);
-      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    }
-
-    function getConnectionInfo() {
-      const conn = navigator.connection || {};
-      return {
-        type: conn.effectiveType || "unknown",
-        speed: conn.downlink || "unknown"
-      };
-    }
-
-    async function getDeviceInfo() {
-      const parser = new UAParser();
-      const result = parser.getResult();
-
-      const fallback = {
-        type: result.device.type || "desktop",
-        model: result.device.model || "unknown",
-        os: `${result.os.name || "Unknown OS"} ${result.os.version || ""}`,
-        osBase: result.os.name || "UnknownOS",
-        browser: `${result.browser.name || "Unknown"} ${result.browser.version || ""}`
-      };
-
-      if (navigator.userAgentData?.getHighEntropyValues) {
-        try {
-          const ua = await navigator.userAgentData.getHighEntropyValues(["platform", "platformVersion", "model"]);
-          return {
-            type: fallback.type,
-            model: ua.model || fallback.model,
-            os: `${ua.platform || fallback.osBase} ${ua.platformVersion || ""}`,
-            osBase: ua.platform || fallback.osBase,
-            browser: fallback.browser
-          };
-        } catch (e) {
-          console.warn("High entropy fetch failed:", e);
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Network Info Logger</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 1rem;
         }
-      }
 
-      return fallback;
-    }
+        h1 {
+            color: #333;
+        }
 
-    async function logData() {
-      if (document.getElementById("opt-out").checked) {
-        document.getElementById("status").innerText = "Logging skipped by user.";
-        return;
-      }
+        p span {
+            font-weight: bold;
+        }
+    </style>
+</head>
 
-      const uid = await signIn();
-      if (!uid) {
-        document.getElementById("status").innerText = "Auth failed.";
-        return;
-      }
+<body>
+    <h1>Network Information</h1>
+    <a href="privacypolicy.html">
+        <h2>Privacy Policy</h2>
+    </a>
 
-      const { ip, location } = await getIP();
-      const conn = getConnectionInfo();
-      const device = await getDeviceInfo();
-      const ipHashed = await hashIP(ip);
+    <p>IP: <span id="ip">Loading...</span></p>
+    <p>Connection Type: <span id="type">Loading...</span></p>
+    <p>Download Speed (Mbps): <span id="speed">Loading...</span></p>
+    <p>Device Type: <span id="device">Loading...</span></p>
+    <p>OS: <span id="os">Loading...</span></p>
+    <p>Browser: <span id="browser">Loading...</span></p>
+    <p>Model: <span id="model">Loading...</span></p>
+    <p id="status">Gathering data...</p>
 
-      document.getElementById("ip").innerText = ip;
-      document.getElementById("type").innerText = conn.type;
-      document.getElementById("speed").innerText = conn.speed;
-      document.getElementById("device").innerText = device.type;
-      document.getElementById("os").innerText = device.os;
-      document.getElementById("browser").innerText = device.browser;
-      document.getElementById("model").innerText = device.model;
+    <label><input type="checkbox" id="opt-out" /> I don't want my session data to be logged</label>
 
-      const docId = `${device.osBase}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    <!-- UAParser -->
+    <script src="https://cdn.jsdelivr.net/npm/ua-parser-js@1.0.2/src/ua-parser.min.js"></script>
 
-      try {
-        await setDoc(doc(collection(db, "networkLogs"), docId), {
-          ipHash: ipHashed,
-          location,
-          connectionType: conn.type,
-          downloadSpeedMbps: conn.speed,
-          timestamp: serverTimestamp(),
-          deviceType: device.type,
-          deviceModel: device.model,
-          os: device.os,
-          browser: device.browser,
-          uid
+    <!-- Firebase -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import { getFirestore, collection, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "", // Put your actual API key here
+            authDomain: "netspace-f34cf.firebaseapp.com",
+            projectId: "netspace-f34cf",
+            storageBucket: "netspace-f34cf.appspot.com",
+            messagingSenderId: "878420258741",
+            appId: "1:878420258741:web:0117164ddeda68e71933fc"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // ✅ Sign in anonymously before logging
+        signInAnonymously(auth)
+            .then(() => {
+                console.log("Signed in anonymously");
+                startLogging(); // call your main log function
+            })
+            .catch((error) => {
+                document.getElementById("status").innerText = "Auth failed.";
+                console.error("Anonymous sign-in failed:", error);
+            });
+
+
+        async function signIn() {
+            try {
+                const userCredential = await signInAnonymously(auth);
+                return userCredential.user.uid;
+            } catch (err) {
+                console.error("Auth failed:", err);
+                return null;
+            }
+        }
+
+        async function getIP() {
+            try {
+                const res = await fetch("https://api.ipify.org?format=json");
+                const ipData = await res.json();
+                const geoRes = await fetch(`https://ipapi.co/${ipData.ip}/json/`);
+                const geo = await geoRes.json();
+
+                return {
+                    ip: ipData.ip,
+                    location: {
+                        country: geo.country_name,
+                        region: geo.region,
+                        city: geo.city
+                    }
+                };
+            } catch (err) {
+                console.warn("IP/location fetch failed:", err);
+                return { ip: "unknown", location: {} };
+            }
+        }
+
+        async function hashIP(ip) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(ip);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        function getConnectionInfo() {
+            const conn = navigator.connection || {};
+            return {
+                type: conn.effectiveType || "unknown",
+                speed: conn.downlink || "unknown"
+            };
+        }
+
+        async function getDeviceInfo() {
+            const parser = new UAParser();
+            const result = parser.getResult();
+
+            const fallback = {
+                type: result.device.type || "desktop",
+                model: result.device.model || "unknown",
+                os: `${result.os.name || "Unknown OS"} ${result.os.version || ""}`,
+                osBase: result.os.name || "UnknownOS",
+                browser: `${result.browser.name || "Unknown"} ${result.browser.version || ""}`
+            };
+
+            if (navigator.userAgentData?.getHighEntropyValues) {
+                try {
+                    const ua = await navigator.userAgentData.getHighEntropyValues(["platform", "platformVersion", "model"]);
+                    return {
+                        type: fallback.type,
+                        model: ua.model || fallback.model,
+                        os: `${ua.platform || fallback.osBase} ${ua.platformVersion || ""}`,
+                        osBase: ua.platform || fallback.osBase,
+                        browser: fallback.browser
+                    };
+                } catch (e) {
+                    console.warn("High entropy fetch failed:", e);
+                }
+            }
+
+            return fallback;
+        }
+
+        async function logData() {
+            if (document.getElementById("opt-out").checked) {
+                document.getElementById("status").innerText = "Logging skipped by user.";
+                return;
+            }
+
+            const uid = await signIn();
+            if (!uid) {
+                document.getElementById("status").innerText = "Auth failed.";
+                return;
+            }
+
+            const { ip, location } = await getIP();
+            const conn = getConnectionInfo();
+            const device = await getDeviceInfo();
+            const ipHashed = await hashIP(ip);
+
+            document.getElementById("ip").innerText = ip;
+            document.getElementById("type").innerText = conn.type;
+            document.getElementById("speed").innerText = conn.speed;
+            document.getElementById("device").innerText = device.type;
+            document.getElementById("os").innerText = device.os;
+            document.getElementById("browser").innerText = device.browser;
+            document.getElementById("model").innerText = device.model;
+
+            const docId = `${device.osBase}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+
+            try {
+                await setDoc(doc(collection(db, "networkLogs"), docId), {
+                    ipHash: ipHashed,
+                    location,
+                    connectionType: conn.type,
+                    downloadSpeedMbps: conn.speed,
+                    timestamp: serverTimestamp(),
+                    deviceType: device.type,
+                    deviceModel: device.model,
+                    os: device.os,
+                    browser: device.browser,
+                    uid
+                });
+
+                document.getElementById("status").innerText = `Logged as: ${docId}`;
+            } catch (err) {
+                console.error("Firestore error:", err.message);
+                document.getElementById("status").innerText = "Failed to log data.";
+            }
+        }
+
+        window.addEventListener("load", () => {
+            const optOutBox = document.getElementById("opt-out");
+            optOutBox.addEventListener("change", () => {
+                if (!optOutBox.checked) logData();
+                else document.getElementById("status").innerText = "Logging skipped by user.";
+            });
+
+            if (!optOutBox.checked) logData();
         });
-
-        document.getElementById("status").innerText = `Logged as: ${docId}`;
-      } catch (err) {
-        console.error("Firestore error:", err.message);
-        document.getElementById("status").innerText = "Failed to log data.";
-      }
-    }
-
-    window.addEventListener("load", () => {
-      const optOutBox = document.getElementById("opt-out");
-      optOutBox.addEventListener("change", () => {
-        if (!optOutBox.checked) logData();
-        else document.getElementById("status").innerText = "Logging skipped by user.";
-      });
-
-      if (!optOutBox.checked) logData();
-    });
-  </script>
+    </script>
 </body>
+
 </html>
