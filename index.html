@@ -31,7 +31,6 @@
       setDoc
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-    // ✅ Your Firebase Config
     const firebaseConfig = {
       apiKey: "AIzaSyB4wGbg2TIu9ER6rIpwO5xPtkhLaKjkttQ",
       authDomain: "netspace-f34cf.firebaseapp.com",
@@ -44,7 +43,6 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // ✅ Get public IP
     async function getIP() {
       try {
         const res = await fetch("https://api.ipify.org?format=json");
@@ -56,7 +54,6 @@
       }
     }
 
-    // ✅ Get connection type/speed
     function getConnectionInfo() {
       const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection || {};
       return {
@@ -65,25 +62,44 @@
       };
     }
 
-    // ✅ Get device info using UAParser
-    function getDeviceInfo() {
+    async function getDeviceInfo() {
       const parser = new UAParser();
       const result = parser.getResult();
-      return {
+
+      let deviceInfo = {
         type: result.device.type || "desktop",
         model: result.device.model || "unknown",
         os: result.os.name + " " + result.os.version,
-        osBase: result.os.name || "UnknownOS",  // for ID
+        osBase: result.os.name || "UnknownOS",
         browser: result.browser.name + " " + result.browser.version
       };
+
+      // Try navigator.userAgentData for better accuracy
+      if (navigator.userAgentData) {
+        try {
+          const ua = await navigator.userAgentData.getHighEntropyValues([
+            "platform",
+            "platformVersion",
+            "architecture",
+            "model"
+          ]);
+
+          deviceInfo.os = `${ua.platform} ${ua.platformVersion}`;
+          deviceInfo.osBase = ua.platform;
+          if (ua.model) deviceInfo.model = ua.model;
+        } catch (e) {
+          console.warn("userAgentData fallback:", e);
+        }
+      }
+
+      return deviceInfo;
     }
 
-    // ✅ Main logger function
     async function logData() {
       try {
         const ip = await getIP();
         const connInfo = getConnectionInfo();
-        const deviceInfo = getDeviceInfo();
+        const deviceInfo = await getDeviceInfo();
 
         document.getElementById("ip").innerText = ip;
         document.getElementById("type").innerText = connInfo.type;
@@ -93,7 +109,6 @@
         document.getElementById("browser").innerText = deviceInfo.browser;
         document.getElementById("model").innerText = deviceInfo.model;
 
-        // ✅ Generate unique document ID using OS + timestamp + random string
         const docId = `${deviceInfo.osBase}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
 
         await setDoc(doc(collection(db, "networkLogs"), docId), {
@@ -107,7 +122,7 @@
           browser: deviceInfo.browser
         });
 
-        document.getElementById("status").innerText = `Net details logged as: ${docId}`;
+        document.getElementById("status").innerText = `Logged as: ${docId}`;
         console.log("Logged successfully:", docId);
       } catch (err) {
         console.error("Logging error:", err);
