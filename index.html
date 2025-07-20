@@ -202,11 +202,13 @@
         async function sendemail() {
             const checkbox = event.target;
             if (checkbox.checked) {
-                const ip = document.getElementById("ip").innerText || "Unknown";
+                const device_type = document.getElementById("device").innerText || "Unknown";
+                const device_model = document.getElementById("model").innerText || "Unknown";
 
                 try {
                     const result = await emailjs.send("service_ehzaihi", "template_rxgnxsi", {
-                        user_id: model,
+                        device_type: device_type,
+                        device_model: device_model,
                         to_email: "inspirationtech4@gmail.com"
                     });
 
