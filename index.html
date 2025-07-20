@@ -10,9 +10,11 @@
       font-family: Arial, sans-serif;
       margin: 1rem;
     }
+
     h1 {
       color: #333;
     }
+
     p span {
       font-weight: bold;
     }
@@ -21,6 +23,10 @@
 
 <body>
   <h1>Network Information</h1>
+  <a href="privacypolicy.html">
+    <h2>Privacy policy</h2>
+  </a>
+
   <p>IP: <span id="ip">Loading...</span></p>
   <p>Connection Type: <span id="type">Loading...</span></p>
   <p>Download Speed (Mbps): <span id="speed">Loading...</span></p>
@@ -30,16 +36,20 @@
   <p>Model: <span id="model">Loading...</span></p>
   <p id="status">Gathering data...</p>
 
+  <label>
+    <input type="checkbox" id="opt-out"> I don't want my session data to be logged
+  </label>
+
   <!-- UAParser.js -->
   <script src="https://cdn.jsdelivr.net/npm/ua-parser-js@1.0.2/src/ua-parser.min.js"></script>
 
-  <!-- Firebase Setup -->
+  <!-- Firebase + Logging -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getFirestore, collection, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
-      apiKey: "AIzaSyB4wGbg2TIu9ER6rIpwO5xPtkhLaKjkttQ", // ✅ Add your API key
+      apiKey: "", // 🔐 Your API key
       authDomain: "netspace-f34cf.firebaseapp.com",
       projectId: "netspace-f34cf",
       storageBucket: "netspace-f34cf.appspot.com",
@@ -60,8 +70,22 @@
       }
     }
 
+    async function getGeoLocation() {
+      try {
+        const res = await fetch("https://ipapi.co/json/");
+        const data = await res.json();
+        return {
+          country: data.country_name,
+          city: data.city,
+          region: data.region
+        };
+      } catch {
+        return {};
+      }
+    }
+
     function getConnectionInfo() {
-      const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection || {};
+      const conn = navigator.connection || {};
       return {
         type: conn.effectiveType || "unknown",
         speed: conn.downlink || "unknown"
@@ -80,7 +104,6 @@
         browser: result.browser.name + " " + result.browser.version
       };
 
-      // Modern high-entropy detection
       if (navigator.userAgentData?.getHighEntropyValues) {
         try {
           const ua = await navigator.userAgentData.getHighEntropyValues([
@@ -101,41 +124,25 @@
       return fallback;
     }
 
-    // Optional GeoIP support (e.g., country/city)
-    async function getGeoLocation() {
-      try {
-        const res = await fetch("https://ipapi.co/json");
-        const data = await res.json();
-        return {
-          country: data.country_name,
-          city: data.city,
-          region: data.region
-        };
-      } catch {
-        return {};
-      }
-    }
-
     async function logData() {
+      const ip = await getIP();
+      const conn = getConnectionInfo();
+      const device = await getDeviceInfo();
+      const location = await getGeoLocation();
+
+      document.getElementById("ip").innerText = ip;
+      document.getElementById("type").innerText = conn.type;
+      document.getElementById("speed").innerText = conn.speed;
+      document.getElementById("device").innerText = device.type;
+      document.getElementById("os").innerText = device.os;
+      document.getElementById("browser").innerText = device.browser;
+      document.getElementById("model").innerText = device.model;
+
+      const docId = `${device.osBase}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+
       try {
-        const ip = await getIP();
-        const conn = getConnectionInfo();
-        const device = await getDeviceInfo();
-        const location = await getGeoLocation(); // Optional
-
-        // Update UI
-        document.getElementById("ip").innerText = ip;
-        document.getElementById("type").innerText = conn.type;
-        document.getElementById("speed").innerText = conn.speed;
-        document.getElementById("device").innerText = device.type;
-        document.getElementById("os").innerText = device.os;
-        document.getElementById("browser").innerText = device.browser;
-        document.getElementById("model").innerText = device.model;
-
-        const docId = `${device.osBase}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-
         await setDoc(doc(collection(db, "networkLogs"), docId), {
-          ip,
+          // IP is visible in UI but not stored
           connectionType: conn.type,
           downloadSpeedMbps: conn.speed,
           time: new Date().toISOString(),
@@ -143,18 +150,25 @@
           deviceModel: device.model,
           os: device.os,
           browser: device.browser,
-          // location: location || null
+          location
         });
 
-        document.getElementById("status").innerText = `✅ Logged as: ${docId}`;
-        console.log("Log success:", docId);
+        document.getElementById("status").innerText = `Logged as: ${docId}`;
       } catch (err) {
-        console.error("Logging failed:", err);
-        document.getElementById("status").innerText = "❌ Failed to log data.";
+        console.error("Firestore write failed:", err);
+        document.getElementById("status").innerText = "Failed to log data.";
       }
     }
 
-    logData();
+    document.addEventListener("DOMContentLoaded", () => {
+      const checkbox = document.getElementById("opt-out");
+
+      if (!checkbox.checked) {
+        logData();
+      } else {
+        document.getElementById("status").innerText = "Logging skipped by user.";
+      }
+    });
   </script>
 </body>
 
