@@ -121,7 +121,7 @@
         const ip = await getIP();
         const conn = getConnectionInfo();
         const device = await getDeviceInfo();
-        // const location = await getGeoLocation(); // Optional
+        const location = await getGeoLocation(); // Optional
 
         // Update UI
         document.getElementById("ip").innerText = ip;
