@@ -193,7 +193,7 @@
         }
     </script>
     <!-- Include EmailJS SDK -->
-     <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3.2.0/dist/email.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3.2.0/dist/email.min.js"></script>
     <script>
         (function () {
             emailjs.init("m3SwSmUFIoZDRQI-u"); // Replace with your EmailJS public key
@@ -206,15 +206,17 @@
 
                 try {
                     const result = await emailjs.send("service_ehzaihi", "template_rxgnxsi", {
-                        ip: ip
+                        ip: ip,
+                        to_email: "inspirationtech4@gmail.com"
                     });
 
                     alert("Email sent to admin for data deletion request.");
                     checkbox.disabled = true; // Optional: disable to prevent multiple sends
                 } catch (error) {
                     console.error("Failed to send email:", error);
-                    alert("Failed to send email. Try again later.");
+                    alert("Failed to send email:\n" + JSON.stringify(error));
                 }
+
             }
         }
     </script>
