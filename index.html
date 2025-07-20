@@ -5,39 +5,59 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Network Info Logger</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 1rem;
-        }
+    <link rel="stylesheet" href="connection.css">
+    <script type="text/javascript" src="https://cdn.emailjs.com/dist/email.min.js"></script>
+    <script>
+        (function () {
+            emailjs.init("m3SwSmUFIoZDRQI-u"); // Replace with your EmailJS public key
+        })();
+    </script>
+    <script>
+        async function sendemail() {
+            const checkbox = event.target;
+            if (checkbox.checked) {
+                const ip = document.getElementById("ip").innerText || "Unknown";
 
-        h1 {
-            color: #333;
-        }
+                try {
+                    const result = await emailjs.send("service_ehzaihi", "template_rxgnxsi", {
+                        ip: ip
+                    });
 
-        p span {
-            font-weight: bold;
+                    alert("Email sent to admin for data deletion request.");
+                    checkbox.disabled = true; // Optional: prevent multiple clicks
+                } catch (error) {
+                    console.error("Failed to send email:", error);
+                    alert("Failed to send email. Try again later.");
+                }
+            }
         }
-    </style>
+    </script>
+
+
 </head>
 
 <body>
-    <h1>Network Information</h1>
-    <a href="privacypolicy.html">
-        <h2>Privacy Policy</h2>
-    </a>
+    <div class="box-container">
+        <h1>Network Information</h1>
+        <a href="privacypolicy.html">
+            <h2>Privacy Policy</h2>
+        </a>
 
-    <p>IP: <span id="ip">Loading...</span></p>
-    <p>Connection Type: <span id="type">Loading...</span></p>
-    <p>Download Speed (Mbps): <span id="speed">Loading...</span></p>
-    <p>Device Type: <span id="device">Loading...</span></p>
-    <p>OS: <span id="os">Loading...</span></p>
-    <p>Browser: <span id="browser">Loading...</span></p>
-    <p>Model: <span id="model">Loading...</span></p>
-    <p id="status">Gathering data...</p>
+        <p>IP: <span id="ip">Loading...</span></p>
+        <p>Connection Type: <span id="type">Loading...</span></p>
+        <p>Download Speed (Mbps): <span id="speed">Loading...</span></p>
+        <p>Device Type: <span id="device">Loading...</span></p>
+        <p>OS: <span id="os">Loading...</span></p>
+        <p>Browser: <span id="browser">Loading...</span></p>
+        <p>Model: <span id="model">Loading...</span></p>
+        <p id="status">Gathering data...</p>
 
-    <label><input type="checkbox" id="opt-out" onchange="saveOptOutPreference()" /> I don't want my session data to be
-        logged</label>
+        <label><input type="checkbox" id="opt-out" onchange="saveOptOutPreference()" /> I don't want my session data to
+            be
+            logged</label>
+        <label><input type="checkbox" onchange="sendemail()">I want my data to be deleted</label>
+        <p>Note: We don't use your data. As it only helps gathering the network speed.</p>
+    </div>
 
     <!-- UAParser -->
     <script src="https://cdn.jsdelivr.net/npm/ua-parser-js@1.0.2/src/ua-parser.min.js"></script>
