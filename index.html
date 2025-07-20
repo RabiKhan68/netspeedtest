@@ -55,7 +55,7 @@
 
     async function getIP() {
       try {
-        const res = await fetch("https://ipinfo.io/json?token=YOUR_TOKEN"); // optional token
+        const res = await fetch("https://ipinfo.io/json?token=75ceb2ba10a982"); // optional token
         const data = await res.json();
         return { ip: data.ip || "unknown", location: data };
       } catch (err) {
