@@ -39,96 +39,71 @@
     const db = getFirestore(app);
 
     async function getIP() {
-      try {
-        const res = await fetch("https://api.ipify.org?format=json");
-        const data = await res.json();
-        return data.ip;
-      } catch (err) {
-        console.error("Failed to fetch IP:", err);
-        return "unknown";
-      }
-    }
-
-    function getOSName() {
-    const userAgent = navigator.userAgent || navigator.vendor || window.opera;
-
-    if (/windows phone/i.test(userAgent)) {
-        return "Windows Phone";
-    }
-    if (/android/i.test(userAgent)) {
-        return "Android";
-    }
-    if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
-        return "iOS";
-    }
-    if (/Macintosh/.test(userAgent)) {
-        return "macOS";
-    }
-    if (/Windows/.test(userAgent)) {
-        return "Windows";
-    }
-    if (/Linux/.test(userAgent)) {
-        return "Linux";
-    }
-    return "Unknown OS";
+  try {
+    const res = await fetch("https://api.ipify.org?format=json");
+    const data = await res.json();
+    return data.ip;
+  } catch (err) {
+    console.error("Failed to fetch IP:", err);
+    return "unknown";
+  }
 }
 
-// Example: display on your site
-document.getElementById("os-name").textContent = getOSName();
+function getConnectionInfo() {
+  const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection || {};
+  return {
+    type: conn.effectiveType || "unknown",
+    speed: conn.downlink || "unknown"
+  };
+}
 
+function getDeviceInfo() {
+  const parser = new UAParser();
+  const result = parser.getResult();
+  return {
+    type: result.device.type || "desktop",
+    model: result.device.model || "unknown",
+    os: result.os.name + " " + result.os.version,
+    osBase: result.os.name || "unknown", // for doc ID
+    browser: result.browser.name + " " + result.browser.version
+  };
+}
 
-    function getConnectionInfo() {
-      const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection || {};
-      return {
-        type: conn.effectiveType || "unknown",
-        speed: conn.downlink || "unknown"
-      };
-    }
+async function logData() {
+  try {
+    const ip = await getIP();
+    const connInfo = getConnectionInfo();
+    const deviceInfo = getDeviceInfo();
 
-    function getDeviceInfo() {
-      const parser = new UAParser();
-      const result = parser.getResult();
-      return {
-        type: result.device.type || "desktop",
-        model: result.device.model || "unknown",
-        os: result.os.name + " " + result.os.version,
-        browser: result.browser.name + " " + result.browser.version
-      };
-    }
+    document.getElementById("ip").innerText = ip;
+    document.getElementById("type").innerText = connInfo.type;
+    document.getElementById("speed").innerText = connInfo.speed;
+    document.getElementById("device").innerText = deviceInfo.type;
+    document.getElementById("os").innerText = deviceInfo.os;
+    document.getElementById("browser").innerText = deviceInfo.browser;
+    document.getElementById("model").innerText = deviceInfo.model;
 
-    async function logData() {
-      try {
-        const ip = await getIP();
-        const connInfo = getConnectionInfo();
-        const deviceInfo = getDeviceInfo();
+    // ✅ Custom doc ID based on OS + timestamp
+    const docId = `${deviceInfo.osBase}-${Date.now()}`;
 
-        document.getElementById("ip").innerText = ip;
-        document.getElementById("type").innerText = connInfo.type;
-        document.getElementById("speed").innerText = connInfo.speed;
-        document.getElementById("device").innerText = deviceInfo.type;
-        document.getElementById("os").innerText = deviceInfo.os;
-        document.getElementById("browser").innerText = deviceInfo.browser;
-        document.getElementById("model").innerText = deviceInfo.model;
+    await setDoc(doc(collection(db, "networkLogs"), docId), {
+      ip,
+      type: connInfo.type,
+      speed: connInfo.speed,
+      time: new Date().toISOString(),
+      deviceType: deviceInfo.type,
+      deviceModel: deviceInfo.model,
+      os: deviceInfo.os,
+      browser: deviceInfo.browser
+    });
 
-        await addDoc(collection(db, "networkLogs"), {
-          ip,
-          type: connInfo.type,
-          speed: connInfo.speed,
-          time: new Date().toISOString(),
-          deviceType: deviceInfo.type,
-          deviceModel: deviceInfo.model,
-          os: deviceInfo.os,
-          browser: deviceInfo.browser
-        });
+    console.log("Logged successfully as:", docId);
+  } catch (err) {
+    console.error("Logging error:", err);
+  }
+}
 
-        document.getElementById("status").innerText = "Net details got successfully.";
-      } catch (err) {
-        console.error("Logging error:", err);
-        document.getElementById("status").innerText = "Error getting net details.";
-      }
-    }
-
-    logData();
+logData();
   </script>
 </body>
 
